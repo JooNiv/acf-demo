@@ -150,7 +150,7 @@ function App() {
       <div className="flex flex-col gap-6 w-full">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-          <div id="input" className="col-span-1 border border-gray-200 p-4 rounded-lg shadow-2xl">
+          <div id="input" className="col-span-1 border border-gray-200 p-4 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold">Choose Your Qubits</h2>
             <form onSubmit={handleSubmit} className="mt-4">
               <label>
@@ -216,7 +216,7 @@ function App() {
             </form>
           </div>
 
-          <div id="bell-circuit" className="h-min col-span-1 border border-gray-200 p-4 rounded-lg shadow-2xl">
+          <div id="bell-circuit" className="h-min col-span-1 border border-gray-200 p-4 rounded-lg shadow-lg">
             <p className="text-2xl font-bold">Optimal circuit</p>
             <img src="./src/bell-circuit.png" alt="Bell Circuit" />
           </div>
@@ -224,7 +224,7 @@ function App() {
 
 
         {(result) &&
-          <div id="score" ref={resultsRef} className="flex flex-col gap-4 border border-gray-200 p-4 rounded-lg shadow-2xl">
+          <div id="score" ref={resultsRef} className="flex flex-col gap-4 border border-gray-200 p-4 rounded-lg shadow-lg">
             <div className="">
               <h4 className="text-2xl font-bold">Score:</h4>
             </div>
@@ -249,7 +249,7 @@ function App() {
 
         <div id="results" className="grid grid-cols-1 sm:grid-cols-1 gap-6">
           {result && (
-            <div className="col-span-1 border border-gray-200 p-4 rounded-lg shadow-2xl">
+            <div className="col-span-1 border border-gray-200 p-4 rounded-lg shadow-lg">
               <h4 className="text-2xl font-bold">Result Distribution:</h4>
               <BarChart
                 barLabel="value"
@@ -273,93 +273,96 @@ function App() {
             </div>
           )}
           {image && (
-            <div className="col-span-1 h-min border border-gray-200 p-4 rounded-lg shadow-2xl">
+            <div className="col-span-1 h-min border border-gray-200 p-4 rounded-lg shadow-lg">
               <h4 className="text-2xl font-bold">Executed circuit:</h4>
               <img src={image} alt="Circuit Diagram" />
             </div>
           )}
         </div>
       </div>
-      <div id="leaderboard" className="h-min w-full border border-gray-200 p-4 rounded-lg shadow-2xl lg:w-[70%] 2xl:w-[100%]">
-        <h2 className="text-2xl font-bold" >Leaderboard</h2>
-        {leaderboard.length === 0 ? (
-          <p>No entries yet</p>
-        ) : (
-          <>
-            <CPagination
-              value={options}
-              //hideDetails
-              onChangeValue={onPageChange}
-              control
-            />
-            <CTable>
-              <table border="1" cellPadding="5">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Qubits</th>
-                    <th>Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboard.slice((options.currentPage - 1) * options.itemsPerPage, (options.currentPage - 1) * options.itemsPerPage + options.itemsPerPage).map((entry, i) => {
-                    const globalIndex = (options.currentPage - 1) * options.itemsPerPage + i;
-                    const isSelected = selectedIndex === globalIndex;
-                    return (
-                      <tr
-                        key={globalIndex}
-                        onClick={() => {
-                          // Build a Map in the same shape as `result` (Map of keys to counts)
-                          const entries = Object.entries(entry.result).sort(([a], [b]) => a.localeCompare(b));
-                          const map = new Map(entries);
-                          setSelectedResult(map);
-                          setSelectedIndex(globalIndex);
-                          setSelectedImage(entry.image);
-                          // scroll to results
-                          selectedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }}
-                        className={isSelected ? 'bg-blue-100 cursor-pointer' : 'cursor-pointer'}
-                      >
-                        <td>{entry.username}</td>
-                        <td>
-                          ({entry.q1}, {entry.q2})
-                        </td>
-                        <td>{entry.score}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </CTable>
-
-          </>
-        )}
-        {/* Selected run bar plot */}
-        {(selectedResult) && (
-          <div ref={selectedRef} className="w-full mt-4 border border-gray-200 p-4 rounded-lg shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Selected Run - Result Distribution</h3>
-              <div>
-                <CButton onClick={() => { setSelectedResult(null); setSelectedIndex(null); }} className="ml-2">Clear</CButton>
-              </div>
-            </div>
-            <div className="mt-4">
-              <BarChart
-                barLabel="value"
-                xAxis={[{ id: 'selBarCats', data: Array.from(selectedResult.keys()) }]}
-                series={[{ data: Array.from(selectedResult.values()), label: 'Count', valueFormatter: v => v, showDataLabels: true, dataLabelFormatter: v => v }]}
-                height={260}
+      <div className="w-full lg:w-[70%] 2xl:w-[100%] h-min">
+        <div id="leaderboard" className="h-min border border-gray-200 p-4 rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold" >Leaderboard</h2>
+          {leaderboard.length === 0 ? (
+            <p>No entries yet</p>
+          ) : (
+            <>
+              <CPagination
+                value={options}
+                //hideDetails
+                onChangeValue={onPageChange}
+                control
               />
-            </div>
-            {selectedImage && (
-              <div className="mt-4">
-                <h4 className="text-xl font-semibold">Selected Run - Executed circuit:</h4>
-                <img src={selectedImage} alt="Circuit Diagram" />
+              <CTable>
+                <table border="1" cellPadding="5">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Qubits</th>
+                      <th>Result</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.slice((options.currentPage - 1) * options.itemsPerPage, (options.currentPage - 1) * options.itemsPerPage + options.itemsPerPage).map((entry, i) => {
+                      const globalIndex = (options.currentPage - 1) * options.itemsPerPage + i;
+                      const isSelected = selectedIndex === globalIndex;
+                      return (
+                        <tr
+                          key={globalIndex}
+                          onClick={() => {
+                            // Build a Map in the same shape as `result` (Map of keys to counts)
+                            const entries = Object.entries(entry.result).sort(([a], [b]) => a.localeCompare(b));
+                            const map = new Map(entries);
+                            setSelectedResult(map);
+                            setSelectedIndex(globalIndex);
+                            setSelectedImage(entry.image);
+                            // scroll to results
+                            selectedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }}
+                          className={isSelected ? 'bg-blue-100 cursor-pointer' : 'cursor-pointer'}
+                        >
+                          <td>{entry.username}</td>
+                          <td>
+                            ({entry.q1}, {entry.q2})
+                          </td>
+                          <td>{entry.score}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </CTable>
+
+            </>
+          )}
+        </div>
+        {/* Selected run bar plot */}
+          {(selectedResult) && (
+            <div ref={selectedRef} className="w-full mt-4 border border-gray-200 p-4 rounded-lg shadow-lg">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Selected Run - Result Distribution</h3>
+                <div>
+                  <CButton onClick={() => { setSelectedResult(null); setSelectedIndex(null); }} className="ml-2">Clear</CButton>
+                </div>
               </div>
-            )}
-          </div>
-        )}
+              <div className="mt-4">
+                <BarChart
+                  barLabel="value"
+                  xAxis={[{ id: 'selBarCats', data: Array.from(selectedResult.keys()) }]}
+                  series={[{ data: Array.from(selectedResult.values()), label: 'Count', valueFormatter: v => v, showDataLabels: true, dataLabelFormatter: v => v }]}
+                  height={260}
+                />
+              </div>
+              {selectedImage && (
+                <div className="mt-4">
+                  <h4 className="text-xl font-semibold">Selected Run - Executed circuit:</h4>
+                  <img src={selectedImage} alt="Circuit Diagram" />
+                </div>
+              )}
+            </div>
+          )}
       </div>
+
 
 
       {/* Floating mobile button: bottom-left, only on small screens */}
