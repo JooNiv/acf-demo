@@ -66,7 +66,7 @@ function App() {
     }
     if (status !== "" && status !== "done") return; // prevent multiple submissions
 
-    setStatus("queued");
+    setStatus("");
     setSubmitted(true);
     setIsValid(true);
     setResult(null);
@@ -90,6 +90,7 @@ function App() {
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
+        console.log(msg?.status)
         if (msg.status === "done") {
           setStatus("executing");
           const entries = Object.entries(msg.result).sort(([a], [b]) => a.localeCompare(b));
@@ -190,7 +191,7 @@ function App() {
                 </label>
               </div>
               <CButton
-                type="submit"
+                type="button"
                 className='flex items-center py-2'
                 onClick={(e) => handleSubmit(e)}
                 loading={status !== "" && status !== "done"}
@@ -353,6 +354,7 @@ function App() {
                   xAxis={[{ id: 'selBarCats', data: Array.from(selectedResult.keys()) }]}
                   series={[{ data: Array.from(selectedResult.values()), label: 'Count', valueFormatter: v => v, showDataLabels: true, dataLabelFormatter: v => v }]}
                   height={260}
+                  //colors={['#006778ff']}
                 />
               </div>
               {selectedImage && (
