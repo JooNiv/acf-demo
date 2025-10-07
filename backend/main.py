@@ -4,7 +4,7 @@ import matplotlib
 from qiskit import QuantumCircuit, transpile
 import asyncio
 import uuid
-
+from time import sleep
 from iqm.qiskit_iqm import IQMFakeAphrodite
 
 from qiskit.converters import circuit_to_dag, dag_to_circuit
@@ -70,9 +70,24 @@ leaderboard = []  # Each entry: {"username": str, "q1": int, "q2": int, "result"
 
 pending_results = {}
 pending_transpiled = {}
+pending_statuses = {}
 
 
 async def transpile_circuit(task_id, username, q1, q2):
+    # Append a 'transpiling' entry to pending_transpiled so late-connecting
+    # clients still see the intermediate status. Use a list to preserve
+    # multiple messages (e.g. 'transpiling' then 'transpiled').
+    pending_transpiled.setdefault(task_id, []).append({"status": "transpiling"})
+
+    # Try to send an immediate 'transpiling' update if the websocket is
+    # already connected. Failures are non-fatal because the pending list
+    # will be delivered when the client connects.
+    ws = connected.get(task_id)
+    if ws:
+        try:
+            await ws.send_json({"status": "transpiling"})
+        except Exception as e:
+            logging.info(f"Could not send 'transpiling' to {task_id}: {e}")
     qc = QuantumCircuit(2, 2)
     qc.h(0)
     qc.cx(0, 1)
@@ -99,24 +114,42 @@ async def transpile_circuit(task_id, username, q1, q2):
         logging.info(f"Error rendering circuit image for task {task_id}: {e}")
         msg["image_error"] = str(e)
 
-    pending_transpiled[task_id] = msg
+    # Append the final transpiled payload (may include the rendered image).
+    pending_transpiled.setdefault(task_id, []).append(msg)
 
+    # If the client is already connected, try to send the final message now.
     ws = connected.get(task_id)
     if ws:
-        await ws.send_json(msg)
+        try:
+            await ws.send_json(msg)
+        except Exception as e:
+            logging.info(f"Could not send 'transpiled' to {task_id}: {e}")
     return transpiled
 
 async def run_simulation(task_id, username, q1, q2, transpiled):
+    # Record that the task is executing so late-connecting clients will
+    # receive the 'executing' update.
+    pending_statuses.setdefault(task_id, []).append({"status": "executing"})
+
+    ws = connected.get(task_id)
+    if ws:
+        try:
+            await ws.send_json({"status": "executing"})
+        except Exception as e:
+            logging.info(f"Could not send 'executing' to {task_id}: {e}")
     logging.info(f"Here, starting run: {task_id}")
-    job = backend.run(transpiled, shots=1024)
+    job = backend.run(transpiled, shots=1000)
     result = job.result().get_counts()
     pending_results[task_id] = result
 
-    ws = connected.get(task_id)
+    
     logging.info(f"Finished circuit from task: {task_id}")
     if ws:
-        await ws.send_json({"status": "done", "result": result})
-        await ws.close()
+        try:
+            await ws.send_json({"status": "done", "result": result})
+            await ws.close()
+        except Exception as e:
+            logging.info(f"Could not send 'done' to {task_id}: {e}")
 
     # Add to leaderboard
     leaderboard.append(
@@ -128,15 +161,14 @@ async def run_simulation(task_id, username, q1, q2, transpiled):
         }
     )
 
-    # Optionally cap leaderboard size
-    if len(leaderboard) > 20:
-        leaderboard.pop(0)  # keep only recent 20
-
     # Notify user
     ws = connected.get(task_id)
     if ws:
-        await ws.send_json({"status": "done", "result": result})
-        await ws.close()
+        try:
+            await ws.send_json({"status": "done", "result": result})
+            await ws.close()
+        except Exception as e:
+            logging.info(f"Could not resend 'done' to {task_id}: {e}")
 
 
 @app.on_event("startup")
@@ -175,17 +207,55 @@ async def submit(job: dict):
 
 @app.websocket("/ws/{task_id}")
 async def ws_status(ws: WebSocket, task_id: str):
+    # Accept the websocket. After await ws.accept() the connection is established.
     await ws.accept()
-    connected[task_id] = ws
-    await ws.send_json({"status": "queued"})
 
-    # If result is already ready, send immediately
-    if task_id in pending_transpiled:
-        await ws.send_json(pending_transpiled[task_id])
-    if task_id in pending_results:
-        result = pending_results.pop(task_id)
-        await ws.send_json({"status": "done", "result": result})
-        await ws.close()
+    # Store the active websocket for this task id so background workers can send updates.
+    connected[task_id] = ws
+
+    try:
+        # Tell the client the job is queued (this is safe to send immediately after accept).
+        await ws.send_json({"status": "queued"})
+
+        # If there are any pending transpile messages (e.g. 'transpiling', 'transpiled'),
+        # send them all in order. Use pop to clear after sending.
+        if task_id in pending_transpiled:
+            msgs = pending_transpiled.pop(task_id)
+            for m in msgs:
+                try:
+                    await ws.send_json(m)
+                except Exception as e:
+                    logging.info(f"Could not send pending transpile message for {task_id}: {e}")
+
+        # If there are any other pending status messages (e.g. 'executing'), send them too.
+        if task_id in pending_statuses:
+            s_msgs = pending_statuses.pop(task_id)
+            for s in s_msgs:
+                try:
+                    await ws.send_json(s)
+                except Exception as e:
+                    logging.info(f"Could not send pending status message for {task_id}: {e}")
+
+        # If the result is already ready, send it and close the connection.
+        if task_id in pending_results:
+            result = pending_results.pop(task_id)
+            await ws.send_json({"status": "done", "result": result})
+            await ws.close()
+            return
+
+        # Keep the connection open until the client disconnects. We don't need to
+        # continuously poll client_state — awaiting receive will error when the
+        # client disconnects and we'll clean up in finally.
+        while True:
+            try:
+                await ws.receive_text()
+            except Exception:
+                # client disconnected or error occurred — break out and cleanup
+                break
+    finally:
+        # Ensure we remove references to the websocket to avoid leaks.
+        if connected.get(task_id) is ws:
+            connected.pop(task_id, None)
 
 
 # Endpoint for leaderboard
