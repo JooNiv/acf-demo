@@ -66,7 +66,7 @@ function App() {
     }
     if (status !== "" && status !== "done") return; // prevent multiple submissions
 
-    setStatus("");
+    setStatus("queued");
     setSubmitted(true);
     setIsValid(true);
     setResult(null);
@@ -92,7 +92,6 @@ function App() {
         const msg = JSON.parse(event.data);
         console.log(msg?.status)
         if (msg.status === "done") {
-          setStatus("executing");
           const entries = Object.entries(msg.result).sort(([a], [b]) => a.localeCompare(b));
           const map = new Map(entries);
           setResult(map);
@@ -105,11 +104,10 @@ function App() {
           if (msg.image) {
             setImage(msg.image);
           }
+          setStatus("transpiled");
         }
         else {
-          if (status !== "done") {
-            setStatus(msg.status);
-          }
+          setStatus(prev => (prev === "done" ? prev : msg.status));
         }
       };
 
