@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BarChart } from '@mui/x-charts/BarChart';
-import { CButton, CTable, CTextField } from '@cscfi/csc-ui-react'
+import { CButton, CTable, CTextField, CSteps, CStep, CProgressBar, CPagination } from '@cscfi/csc-ui-react'
 import "./App.css"
 
 function App() {
@@ -9,22 +9,65 @@ function App() {
   const [q2, setQ2] = useState(1);
   const [image, setImage] = useState(null);
   const [status, setStatus] = useState("");
+  const [isDone, setIsDone] = useState(0);
   const [result, setResult] = useState(null);
   const [isValid, setIsValid] = useState(true);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [submitted, setSubmitted] = useState(false);
+  const [options, setOptions] = useState({
+    itemCount: leaderboard.length,
+    itemsPerPage: 5,
+    currentPage: 1,
+    pageSizes: [5, 10, 15, 20, 40]
+  });
+  const resultsRef = useRef(null);
+  const steps = {
+    "queued": 1,
+    "transpiling": 2,
+    "transpiled": 3,
+    "executing": 4,
+    "done": 5,
+  }
+
+  const isInitialLoad = useRef(true);
+
+  // CPagination calls onChangeValue with the new options object.
+  const onPageChange = (newOptions) => {
+    setOptions(prev => ({ ...prev, ...newOptions }));
+
+    // Skip scrolling on initial load
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      return;
+    }
+
+    const thisElement = document.getElementById("leaderboard");
+    if (thisElement) {
+      const yOffset = -80; // Account for navbar
+      const y = thisElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+
+  // Keep pagination itemCount in sync with number of leaderboard entries
+  useEffect(() => {
+    setOptions(prev => ({ ...prev, itemCount: leaderboard.length }));
+  }, [leaderboard]);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (username.trim() === ""){ 
-      console.log("Username is required");
+    if (username.trim() === "") {
       setIsValid(false);
-      return }
-    if (status !== "" && status !== "Done!") return; // prevent multiple submissions
-    
-    setStatus("Submitting...");
+      return
+    }
+    if (status !== "" && status !== "done") return; // prevent multiple submissions
+
+    setStatus("queued");
+    setSubmitted(true);
     setIsValid(true);
     setResult(null);
     setImage(null);
+    setIsDone(0);
 
     try {
       // Send the job request
@@ -36,33 +79,35 @@ function App() {
       const data = await res.json();
       const { task_id } = data;
 
-      setStatus("Waiting for result...");
+      //setStatus("Waiting for result...");
 
       // Connect WebSocket for updates
       const ws = new WebSocket(`ws://localhost:8000/ws/${task_id}`);
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-
-        if (msg.status === "queued") {
-          setStatus("Your job is queued...");
-        } else if (msg.status === "transpiled") {
-          setStatus("Circuit transpiled");
-          if (msg.image) {
-            setImage(msg.image);
-          }
-        } else if (msg.status === "done") {
-          setStatus("Done!");
+        if (msg.status === "done") {
+          setStatus("executing");
           const entries = Object.entries(msg.result).sort(([a], [b]) => a.localeCompare(b));
           const map = new Map(entries);
           setResult(map);
+          setStatus("done");
+          setIsDone(1)
           ws.close();
           fetchLeaderboard(); // refresh leaderboard after job done
         }
+        else if (msg.status === "transpiled") {
+          if (msg.image) {
+            setImage(msg.image);
+          }
+        }
+        else {
+          if (status !== "done") {
+            setStatus(msg.status);
+          }
+        }
       };
 
-      ws.onclose = () => console.log("WebSocket closed");
-      ws.onerror = (err) => console.error("WebSocket error:", err);
 
     } catch (err) {
       console.error(err);
@@ -97,125 +142,181 @@ function App() {
   }, []);
 
   return (
-    <div style={{ fontFamily: "sans-serif", padding: "2rem", maxWidth: 500, margin: "auto" }}>
-      
-      <h1>Quantum Bell State Simulator</h1>
+    <div className="flex flex-col lg:flex-row gap-12 p-6">
+      <div className="flex flex-col gap-6 w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-      <form onSubmit={handleSubmit}>
-        <label>
-          Username:
-          <CTextField
-            value={username}
-            valid={isValid}
-            placeholder="Enter your username"
-            validation="Username is required"
-            onChangeValue={handleChangeUsernameValue}
-            required
-            style={{ marginLeft: 8 }}
-          />
-        </label>
-        <div className="flex space-x-4">
-        <label className="w-full">
-          Qubit 1 index:
-          <CTextField
-            type="number"
-            value={q1}
-            onChangeValue={(e) => setQ1(e.target.value)}
-            min="0"
-            max="53"
-            style={{ marginLeft: 8, width: 50 }}
-          />
-        </label>
-        <label className="w-full">
-          Qubit 2 index:
-          <CTextField
-            type="number"
-            value={q2}
-            onChangeValue={(e) => setQ2(e.target.value)}
-            min="0"
-            max="53"
-            style={{ marginLeft: 8, width: 50 }}
-          />
-        </label>
+          <div id="input" className="col-span-1 border border-gray-200 p-4 rounded-lg shadow-2xl">
+            <h2 className="text-2xl font-bold">Choose Your Qubits</h2>
+            <form onSubmit={handleSubmit} className="mt-4">
+              <label>
+                Username:
+                <CTextField
+                  value={username}
+                  valid={isValid}
+                  placeholder="Enter your username"
+                  validation="Username is required"
+                  onChangeValue={handleChangeUsernameValue}
+                  required
+                  style={{ marginLeft: 8 }}
+                />
+              </label>
+              <div className="flex space-x-4">
+                <label className="w-full">
+                  Control Qubit:
+                  <CTextField
+                    type="number"
+                    value={q1}
+                    onChangeValue={(e) => setQ1(e.target.value)}
+                    min="0"
+                    max="53"
+                    style={{ marginLeft: 8, width: 50 }}
+                  />
+                </label>
+                <label className="w-full">
+                  Target Qubit:
+                  <CTextField
+                    type="number"
+                    value={q2}
+                    onChangeValue={(e) => setQ2(e.target.value)}
+                    min="0"
+                    max="53"
+                    style={{ marginLeft: 8, width: 50 }}
+                  />
+                </label>
+              </div>
+              <CButton
+                type="submit"
+                className='flex items-center py-2'
+                onClick={(e) => handleSubmit(e)}
+                loading={status !== "" && status !== "done"}
+              >
+                Execute Circuit
+              </CButton>
+              {submitted && (<>
+                <CSteps className="mt-6 font-semibold" v-model="step" value={steps[status]}>
+                  <CStep>Queued</CStep>
+
+                  <CStep>Transpiling</CStep>
+
+                  <CStep>Transpiled</CStep>
+
+                  <CStep>Executing</CStep>
+
+                  <CStep>Done</CStep>
+
+                </CSteps>
+              </>
+              )}
+
+            </form>
+          </div>
+
+          <div id="bell-circuit" className="h-min col-span-1 border border-gray-200 p-4 rounded-lg shadow-2xl">
+            <p className="text-2xl font-bold">Optimal circuit</p>
+            <img src="./src/bell-circuit.png" alt="Bell Circuit" />
+          </div>
         </div>
-        <br /><br />
-        <CButton
-            type="submit"
-            className='flex items-center py-2'
-            onClick={(e) => handleSubmit(e)}
-            loading={status !== "" && status !== "Done!"}
-        >
-            Execute Circuit
-        </CButton>
-        
-      </form>
 
-      <div style={{ marginTop: "2rem" }}>
-        <h3>Status: {status}</h3>
-        {image && (
-          <div>
-            <h4>Circuit Diagram:</h4>
-            <img src={image} alt="Circuit Diagram" style={{ maxWidth: "100%" }} />
-          </div>
-        )}
-        {result && (
-          <div>
-            <h4>Result:</h4>
-            <div>
-              Score: {result.get("00") + result.get("11")}
+
+        {result &&
+          <div id="score" ref={resultsRef} className="flex flex-col gap-4 border border-gray-200 p-4 rounded-lg shadow-2xl">
+            <div className="">
+              <h4 className="text-2xl font-bold">Score:</h4>
             </div>
-            <BarChart
-              barLabel="value"
-              xAxis={[
-                {
-                  id: 'barCategories',
-                  data: Array.from(result.keys()),
-                },
-              ]}
-              series={[
-                {
-                  data: Array.from(result.values()),
-                  label: "Count",
-                  valueFormatter: (value) => value, // optional, for tooltip
-                  showDataLabels: true, // <-- show value labels on bars
-                  dataLabelFormatter: (value) => value, // <-- label is the value
-                },
-              ]}
-              height={300}
-            />
-          </div>
-        )}
-      </div>
+            <div>
 
-      <div style={{ marginTop: "2rem" }}>
-        <h2>Leaderboard</h2>
+              <div>
+                <p className="ml-1">{result.get("00") + result.get("11")}/1000</p>
+                <CProgressBar hideDetails value={(result.get("00") + result.get("11")) / 10} />
+              </div>
+            </div>
+          </div>
+        }
+
+        <div id="results" className="grid grid-cols-1 sm:grid-cols-1 gap-6">
+          {result && (
+            <div className="col-span-1 border border-gray-200 p-4 rounded-lg shadow-2xl">
+              <h4 className="text-2xl font-bold">Result Distribution:</h4>
+              <BarChart
+                barLabel="value"
+                xAxis={[
+                  {
+                    id: 'barCategories',
+                    data: Array.from(result.keys()),
+                  },
+                ]}
+                series={[
+                  {
+                    data: Array.from(result.values()),
+                    label: "Count",
+                    valueFormatter: (value) => value, // optional, for tooltip
+                    showDataLabels: true, // <-- show value labels on bars
+                    dataLabelFormatter: (value) => value, // <-- label is the value
+                  },
+                ]}
+                height={300}
+              />
+            </div>
+          )}
+          {image && (
+            <div className="col-span-1 h-min border border-gray-200 p-4 rounded-lg shadow-2xl">
+              <h4 className="text-2xl font-bold">Executed circuit:</h4>
+              <img src={image} alt="Circuit Diagram" />
+            </div>
+          )}
+        </div>
+      </div>
+      <div id="leaderboard" className="h-min w-full border border-gray-200 p-4 rounded-lg shadow-2xl lg:w-[70%] 2xl:w-[100%]">
+        <h2 className="text-2xl font-bold" >Leaderboard</h2>
         {leaderboard.length === 0 ? (
           <p>No entries yet</p>
         ) : (
-          <CTable>
-          <table border="1" cellPadding="5">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Qubits</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leaderboard.map((entry, i) => (
-                <tr key={i}>
-                  <td>{entry.username}</td>
-                  <td>
-                    ({entry.q1}, {entry.q2})
-                  </td>
-                  <td>{entry.score}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </CTable>
+          <>
+            <CPagination
+              value={options}
+              //hideDetails
+              onChangeValue={onPageChange}
+              control
+            />
+            <CTable>
+              <table border="1" cellPadding="5">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Qubits</th>
+                    <th>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaderboard.slice((options.currentPage - 1) * options.itemsPerPage, (options.currentPage - 1) * options.itemsPerPage + options.itemsPerPage).map((entry, i) => (
+                    <tr key={i}>
+                      <td>{entry.username}</td>
+                      <td>
+                        ({entry.q1}, {entry.q2})
+                      </td>
+                      <td>{entry.score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CTable>
+
+          </>
         )}
       </div>
+
+
+      {/* Floating mobile button: bottom-left, only on small screens */}
+      {status === "done" && result && (
+        <CButton
+          onClick={() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          className="fixed bottom-4 right-6 z-50 sm:hidden text-white shadow-lg"
+          aria-label="Scroll to results"
+        >
+          <p className="">Results</p>
+        </CButton>
+      )}
     </div>
   );
 }
