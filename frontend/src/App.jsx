@@ -11,6 +11,9 @@ function App() {
   const [status, setStatus] = useState("");
   const [isDone, setIsDone] = useState(0);
   const [result, setResult] = useState(null);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [isValid, setIsValid] = useState(true);
   const [leaderboard, setLeaderboard] = useState([]);
   const [submitted, setSubmitted] = useState(false);
@@ -21,6 +24,7 @@ function App() {
     pageSizes: [5, 10, 15, 20, 40]
   });
   const resultsRef = useRef(null);
+  const selectedRef = useRef(null);
   const steps = {
     "queued": 1,
     "transpiling": 2,
@@ -142,7 +146,7 @@ function App() {
   }, []);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-12 p-6">
+    <div className="flex flex-col lg:flex-row gap-12 p-6 mb-12">
       <div className="flex flex-col gap-6 w-full">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
@@ -219,7 +223,7 @@ function App() {
         </div>
 
 
-        {result &&
+        {(result) &&
           <div id="score" ref={resultsRef} className="flex flex-col gap-4 border border-gray-200 p-4 rounded-lg shadow-2xl">
             <div className="">
               <h4 className="text-2xl font-bold">Score:</h4>
@@ -227,8 +231,17 @@ function App() {
             <div>
 
               <div>
-                <p className="ml-1">{result.get("00") + result.get("11")}/1000</p>
-                <CProgressBar hideDetails value={(result.get("00") + result.get("11")) / 10} />
+                {(() => {
+                  const display = result;
+                  const val00 = display.get("00") || 0;
+                  const val11 = display.get("11") || 0;
+                  return (
+                    <>
+                      <p className="ml-1">{val00 + val11}/1000</p>
+                      <CProgressBar hideDetails value={(val00 + val11) / 10} />
+                    </>
+                  )
+                })()}
               </div>
             </div>
           </div>
@@ -289,20 +302,62 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {leaderboard.slice((options.currentPage - 1) * options.itemsPerPage, (options.currentPage - 1) * options.itemsPerPage + options.itemsPerPage).map((entry, i) => (
-                    <tr key={i}>
-                      <td>{entry.username}</td>
-                      <td>
-                        ({entry.q1}, {entry.q2})
-                      </td>
-                      <td>{entry.score}</td>
-                    </tr>
-                  ))}
+                  {leaderboard.slice((options.currentPage - 1) * options.itemsPerPage, (options.currentPage - 1) * options.itemsPerPage + options.itemsPerPage).map((entry, i) => {
+                    const globalIndex = (options.currentPage - 1) * options.itemsPerPage + i;
+                    const isSelected = selectedIndex === globalIndex;
+                    return (
+                      <tr
+                        key={globalIndex}
+                        onClick={() => {
+                          // Build a Map in the same shape as `result` (Map of keys to counts)
+                          const entries = Object.entries(entry.result).sort(([a], [b]) => a.localeCompare(b));
+                          const map = new Map(entries);
+                          setSelectedResult(map);
+                          setSelectedIndex(globalIndex);
+                          setSelectedImage(entry.image);
+                          // scroll to results
+                          selectedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        className={isSelected ? 'bg-blue-100 cursor-pointer' : 'cursor-pointer'}
+                      >
+                        <td>{entry.username}</td>
+                        <td>
+                          ({entry.q1}, {entry.q2})
+                        </td>
+                        <td>{entry.score}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </CTable>
 
           </>
+        )}
+        {/* Selected run bar plot */}
+        {(selectedResult) && (
+          <div ref={selectedRef} className="w-full mt-4 border border-gray-200 p-4 rounded-lg shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Selected Run - Result Distribution</h3>
+              <div>
+                <CButton onClick={() => { setSelectedResult(null); setSelectedIndex(null); }} className="ml-2">Clear</CButton>
+              </div>
+            </div>
+            <div className="mt-4">
+              <BarChart
+                barLabel="value"
+                xAxis={[{ id: 'selBarCats', data: Array.from(selectedResult.keys()) }]}
+                series={[{ data: Array.from(selectedResult.values()), label: 'Count', valueFormatter: v => v, showDataLabels: true, dataLabelFormatter: v => v }]}
+                height={260}
+              />
+            </div>
+            {selectedImage && (
+              <div className="mt-4">
+                <h4 className="text-xl font-semibold">Selected Run - Executed circuit:</h4>
+                <img src={selectedImage} alt="Circuit Diagram" />
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -311,7 +366,7 @@ function App() {
       {status === "done" && result && (
         <CButton
           onClick={() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          className="fixed bottom-4 right-6 z-50 sm:hidden text-white shadow-lg"
+          className="fixed bottom-4 left-6 z-50 sm:hidden text-white shadow-lg"
           aria-label="Scroll to results"
         >
           <p className="">Results</p>
