@@ -163,6 +163,10 @@ async def run_simulation(task_id, username, q1, q2, transpiled):
             "image": transpiled_images.get(task_id)
         }
     )
+
+    if len(leaderboard) > 200:
+        leaderboard.pop(0)
+
     transpiled_images.pop(task_id, None)
 
     # Notify user
