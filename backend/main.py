@@ -22,12 +22,12 @@ load_dotenv()
 qx_token = os.getenv('qx_token')
 os.environ["IQM_TOKEN"] = qx_token
 
-server_url = "https://qx.vtt.fi/api/devices/demo"
-provider = IQMProvider(server_url)
+backend = IQMFakeAphrodite()
 
-fake_backend = IQMFakeAphrodite()
-
-backend = provider.get_backend()
+if qx_token != "none":
+    server_url = "https://qx.vtt.fi/api/devices/demo"
+    provider = IQMProvider(server_url)
+    backend = provider.get_backend()
 
 class RootOnlyFilter(logging.Filter):
     def filter(self, record):
