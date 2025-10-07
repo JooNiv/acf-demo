@@ -87,6 +87,8 @@ pending_statuses = {}
 
 transpiled_images = {}
 
+circuit_batch = {}
+
 async def transpile_circuit(task_id, username, q1, q2):
     # Append a 'transpiling' entry to pending_transpiled so late-connecting
     # clients still see the intermediate status. Use a list to preserve
@@ -153,8 +155,17 @@ async def run_simulation(task_id, username, q1, q2, transpiled):
         except Exception as e:
             logging.info(f"Could not send 'executing' to {task_id}: {e}")
     logging.info(f"Here, starting run: {task_id}")
-    job = backend.run(transpiled, shots=1000)
-    result = job.result().get_counts()
+    
+    # run in executor to avoid blocking event loop
+    loop = asyncio.get_running_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: backend.run(transpiled, shots=1000).result().get_counts()
+        )
+    except Exception as e:
+        logging.exception(f"Run failed for task {task_id}: {e}")
+        result = {}
     pending_results[task_id] = result
 
     
@@ -191,6 +202,8 @@ async def run_simulation(task_id, username, q1, q2, transpiled):
         except Exception as e:
             logging.info(f"Could not resend 'done' to {task_id}: {e}")
 
+async def add_to_batch(task_id, username, q1, q2, transpiled):
+    return
 
 @app.on_event("startup")
 async def start_worker():
@@ -201,6 +214,7 @@ async def start_worker():
 async def worker():
     while True:
         task = await task_queue.get()
+        # await add_to_batch(**task)
         await run_simulation(**task)
         task_queue.task_done()
 
@@ -245,6 +259,8 @@ async def ws_status(ws: WebSocket, task_id: str):
             for m in msgs:
                 try:
                     await ws.send_json(m)
+                    logging.info(f"Sent pending transpile message for {task_id}")
+                    #logging.info(f"Message content: {m}")
                 except Exception as e:
                     logging.info(f"Could not send pending transpile message for {task_id}: {e}")
 
