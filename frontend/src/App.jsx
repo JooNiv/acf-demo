@@ -7,6 +7,7 @@ function App() {
   const [username, setUsername] = useState("");
   const [q1, setQ1] = useState(0);
   const [q2, setQ2] = useState(1);
+  const [image, setImage] = useState(null);
   const [status, setStatus] = useState("");
   const [result, setResult] = useState(null);
   const [isValid, setIsValid] = useState(true);
@@ -23,6 +24,7 @@ function App() {
     setStatus("Submitting...");
     setIsValid(true);
     setResult(null);
+    setImage(null);
 
     try {
       // Send the job request
@@ -44,6 +46,11 @@ function App() {
 
         if (msg.status === "queued") {
           setStatus("Your job is queued...");
+        } else if (msg.status === "transpiled") {
+          setStatus("Circuit transpiled");
+          if (msg.image) {
+            setImage(msg.image);
+          }
         } else if (msg.status === "done") {
           setStatus("Done!");
           const entries = Object.entries(msg.result).sort(([a], [b]) => a.localeCompare(b));
@@ -145,6 +152,12 @@ function App() {
 
       <div style={{ marginTop: "2rem" }}>
         <h3>Status: {status}</h3>
+        {image && (
+          <div>
+            <h4>Circuit Diagram:</h4>
+            <img src={image} alt="Circuit Diagram" style={{ maxWidth: "100%" }} />
+          </div>
+        )}
         {result && (
           <div>
             <h4>Result:</h4>
