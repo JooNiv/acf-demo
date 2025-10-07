@@ -4,8 +4,7 @@ import matplotlib
 from qiskit import QuantumCircuit, transpile
 import asyncio
 import uuid
-from time import sleep
-from iqm.qiskit_iqm import IQMFakeAphrodite
+from iqm.qiskit_iqm import IQMFakeAphrodite, IQMProvider
 
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from collections import OrderedDict
@@ -14,7 +13,21 @@ import io
 import base64
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-backend = IQMFakeAphrodite()
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+qx_token = os.getenv('qx_token')
+os.environ["IQM_TOKEN"] = qx_token
+
+server_url = "https://qx.vtt.fi/api/devices/demo"
+provider = IQMProvider(server_url)
+
+fake_backend = IQMFakeAphrodite()
+
+backend = provider.get_backend()
 
 class RootOnlyFilter(logging.Filter):
     def filter(self, record):
