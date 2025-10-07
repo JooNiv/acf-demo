@@ -281,7 +281,10 @@ function App() {
       </div>
       <div className="w-full lg:w-[70%] 2xl:w-[100%] h-min">
         <div id="leaderboard" className="h-min border border-gray-200 p-4 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold" >Leaderboard</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Leaderboard</h2>
+            <CButton onClick={fetchLeaderboard} className="ml-2 mb-2">Refresh</CButton>
+          </div>
           {leaderboard.length === 0 ? (
             <p>No entries yet</p>
           ) : (
