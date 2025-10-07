@@ -72,6 +72,7 @@ pending_results = {}
 pending_transpiled = {}
 pending_statuses = {}
 
+transpiled_images = {}
 
 async def transpile_circuit(task_id, username, q1, q2):
     # Append a 'transpiling' entry to pending_transpiled so late-connecting
@@ -107,6 +108,7 @@ async def transpile_circuit(task_id, username, q1, q2):
         buf.seek(0)
         img_b64 = base64.b64encode(buf.getvalue()).decode('ascii')
         msg["image"] = f"data:image/png;base64,{img_b64}"
+        transpiled_images[task_id] = msg["image"]
 
         logging.info(f"Rendered circuit image for task: {task_id}")
     except Exception as e:
@@ -158,8 +160,10 @@ async def run_simulation(task_id, username, q1, q2, transpiled):
             "q1": q1,
             "q2": q2,
             "result": result,
+            "image": transpiled_images.get(task_id)
         }
     )
+    transpiled_images.pop(task_id, None)
 
     # Notify user
     ws = connected.get(task_id)
