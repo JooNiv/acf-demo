@@ -297,6 +297,7 @@ function App() {
                 <table border="1" cellPadding="5">
                   <thead>
                     <tr>
+                      <th>#</th>
                       <th>User</th>
                       <th>Qubits</th>
                       <th>Result</th>
@@ -321,6 +322,7 @@ function App() {
                           }}
                           className={isSelected ? 'bg-blue-100 cursor-pointer' : 'cursor-pointer'}
                         >
+                          <td>{globalIndex + 1}</td>
                           <td>{entry.username}</td>
                           <td>
                             ({entry.q1}, {entry.q2})
