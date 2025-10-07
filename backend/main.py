@@ -19,7 +19,7 @@ app.add_middleware(
 connected = {}  # task_id -> websocket
 task_queue = asyncio.Queue()
 
-# ✅ In-memory leaderboard list
+# In-memory leaderboard list
 leaderboard = []  # Each entry: {"username": str, "q1": int, "q2": int, "result": dict}
 
 pending_results = {}
@@ -44,7 +44,7 @@ async def run_simulation(task_id, username, q1, q2):
         await ws.close()
 
 
-    # ✅ Add to leaderboard
+    # Add to leaderboard
     leaderboard.append({
         "username": username,
         "q1": q1,
@@ -52,7 +52,7 @@ async def run_simulation(task_id, username, q1, q2):
         "result": result,
     })
 
-    # ✅ Optionally cap leaderboard size
+    # Optionally cap leaderboard size
     if len(leaderboard) > 20:
         leaderboard.pop(0)  # keep only recent 20
 
@@ -91,7 +91,7 @@ async def ws_status(ws: WebSocket, task_id: str):
         await ws.close()
 
 
-# ✅ New REST endpoint for leaderboard
+# Endpoint for leaderboard
 @app.get("/leaderboard")
 async def get_leaderboard():
     return leaderboard

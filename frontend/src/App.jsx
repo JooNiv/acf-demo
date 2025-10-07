@@ -9,16 +9,19 @@ function App() {
   const [q2, setQ2] = useState(1);
   const [status, setStatus] = useState("");
   const [result, setResult] = useState(null);
+  const [isValid, setIsValid] = useState(true);
   const [leaderboard, setLeaderboard] = useState([]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (username.trim() === ""){ 
       console.log("Username is required");
+      setIsValid(false);
       return }
     if (status !== "" && status !== "Done!") return; // prevent multiple submissions
     
     setStatus("Submitting...");
+    setIsValid(true);
     setResult(null);
 
     try {
@@ -75,6 +78,13 @@ function App() {
     }
   }
 
+  async function handleChangeUsernameValue(e) {
+    setUsername(e.target.value);
+    if (e.target.value.trim() !== "") {
+      setIsValid(true);
+    }
+  }
+
   useEffect(() => {
     fetchLeaderboard();
   }, []);
@@ -89,10 +99,10 @@ function App() {
           Username:
           <CTextField
             value={username}
-            valid={username.trim() !== ""}
+            valid={isValid}
             placeholder="Enter your username"
             validation="Username is required"
-            onChangeValue={(e) => setUsername(e.target.value)}
+            onChangeValue={handleChangeUsernameValue}
             required
             style={{ marginLeft: 8 }}
           />
@@ -103,7 +113,7 @@ function App() {
           <CTextField
             type="number"
             value={q1}
-            onChange={(e) => setQ1(e.target.value)}
+            onChangeValue={(e) => setQ1(e.target.value)}
             min="0"
             max="53"
             style={{ marginLeft: 8, width: 50 }}
@@ -114,7 +124,7 @@ function App() {
           <CTextField
             type="number"
             value={q2}
-            onChange={(e) => setQ2(e.target.value)}
+            onChangeValue={(e) => setQ2(e.target.value)}
             min="0"
             max="53"
             style={{ marginLeft: 8, width: 50 }}
