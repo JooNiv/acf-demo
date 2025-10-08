@@ -1,7 +1,8 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 import matplotlib
-from qiskit import QuantumCircuit, transpile
+from qiskit import QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
+from qiskit.circuit import CircuitInstruction
 import asyncio
 import uuid
 from iqm.qiskit_iqm import IQMFakeAphrodite, IQMProvider
@@ -59,18 +60,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def find_active_qubits(circuit):
+
+   dag = circuit_to_dag(circuit)
+   active_qubits = [circuit.find_bit(qubit).index for qubit in circuit.qubits 
+                    if qubit not in dag.idle_wires()]
+
+   return active_qubits
 
 def remove_idle_qwires(circ):
-    dag = circuit_to_dag(circ)
+    active_qubits = find_active_qubits(circ)
 
-    idle_wires = list(dag.idle_wires())
-    for w in idle_wires:
-        dag._remove_idle_wire(w)
-        dag.qubits.remove(w)
+    qrs = []
+    for i in active_qubits:
+        qrs.append(QuantumRegister(1, i))
 
-    dag.qregs = OrderedDict()
+    cr = ClassicalRegister(2, 'c')
 
-    return dag_to_circuit(dag)
+    new_qc = QuantumCircuit(*qrs, cr)
+
+    for i in circ.data:
+        qubits = [active_qubits.index(circ.find_bit(j).index) for j in i.qubits]
+        new_instruction = CircuitInstruction(i.operation, qubits, i.clbits)
+        new_qc.append(new_instruction)
+
+    return new_qc
 
 
 connected = {}  # task_id -> websocket
