@@ -194,7 +194,7 @@ function App() {
                 onClick={(e) => handleSubmit(e)}
                 loading={status !== "" && status !== "done"}
               >
-                Execute Circuit
+                Execute On Q50
               </CButton>
               {submitted && (<>
                 <CSteps className="mt-6 font-semibold" v-model="step" value={steps[status]}>
