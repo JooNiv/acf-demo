@@ -22,10 +22,13 @@ load_dotenv()
 qx_token = os.getenv('qx_token')
 os.environ["IQM_TOKEN"] = qx_token
 
+project_id = os.getenv('slurm_project_id')
+device = os.getenv('device')
+
 backend = IQMFakeAphrodite()
 
 if qx_token != "none":
-    server_url = "https://qx.vtt.fi/api/devices/demo"
+    server_url = f"https://qx.vtt.fi/api/devices/{device}"
     provider = IQMProvider(server_url)
     backend = provider.get_backend()
 
@@ -370,6 +373,12 @@ async def transpile_worker():
         task = await transpile_queue.get()
 
         transpiled = await transpile_circuit(**task)
+        
+        # Append slurm metadata if using a real device (not demo)
+        # and project_id and qx_token are set
+        if device != "demo" and project_id and qx_token:
+            transpiled.slurm_job_id = f"demo_{str(uuid.uuid4().int % 10**8).zfill(8)}"
+            transpiled.slurm_project_id = project_id
 
         task_id = task["task_id"]
         q1 = task["q1"]
