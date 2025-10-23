@@ -20,14 +20,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 qx_token = os.getenv('qx_token')
-os.environ["IQM_TOKEN"] = qx_token
+if qx_token:
+    os.environ["IQM_TOKEN"] = qx_token
 
 project_id = os.getenv('slurm_project_id')
 device = os.getenv('device')
 
 backend = IQMFakeAphrodite()
 
-if qx_token != "none":
+if  qx_token:
     server_url = f"https://qx.vtt.fi/api/devices/{device}"
     provider = IQMProvider(server_url)
     backend = provider.get_backend()
