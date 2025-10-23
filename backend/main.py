@@ -377,7 +377,9 @@ async def transpile_worker():
         # Append slurm metadata if using a real device (not demo)
         # and project_id and qx_token are set
         if device != "demo" and project_id and qx_token:
-            transpiled.slurm_project_id = project_id
+            if getattr(transpiled, "metadata", None) is None:
+                transpiled.metadata = {}
+            transpiled.metadata["project_id"] = project_id
 
         task_id = task["task_id"]
         q1 = task["q1"]
