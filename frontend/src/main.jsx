@@ -5,7 +5,7 @@ import {QRCodeSVG} from 'qrcode.react'
 import App from './App.jsx'
 
 // metadata
-document.title = 'Quantum Bell State Demo'
+document.title = 'Quantum Entanglement Game'
 
 export const useWindowSize = () => {
     const [width, setWidth] = useState(
@@ -45,7 +45,7 @@ function MainApp() {
     <div>
       <div className='flex flex-row border-b-4 border-[#006778ff] justify-between items-center'>
         <div className='flex flex-row items-center'>
-          <h1 className="m-6 text-4xl font-bold">Quantum Bell State Demo</h1>
+          <h1 className="m-6 text-4xl font-bold">Quantum Entanglement Game</h1>
           <CButton
             type="button"
             className='flex items-center m-6'
