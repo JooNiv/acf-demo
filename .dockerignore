@@ -8,5 +8,6 @@ __pycache__
 .env
 backend/test.ipynb
 backend/README.md
+frontend/README.md
 README.md
 start.sh
