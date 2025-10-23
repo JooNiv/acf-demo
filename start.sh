@@ -31,7 +31,7 @@ echo -e "${GREEN}Starting ACF Demo...${NC}"
 # Start backend
 echo -e "${YELLOW}Starting backend...${NC}"
 cd backend
-fastapi run main.py --host 0.0.0.0 --port 8000 &
+uv run fastapi run main.py --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 cd ..
 
