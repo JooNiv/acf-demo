@@ -4,6 +4,10 @@ Quantum entanglement demo game for CSC ACF conference
 
 # Running locally
 
+## Set environment variables
+
+Create a `.env` file in `/backend` and add your variables accroding to `.env-example`
+
 ## Docker
 
 ```bash
