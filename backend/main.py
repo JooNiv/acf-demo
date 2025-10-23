@@ -7,8 +7,7 @@ import asyncio
 import uuid
 from iqm.qiskit_iqm import IQMFakeAphrodite, IQMProvider
 
-from qiskit.converters import circuit_to_dag, dag_to_circuit
-from collections import OrderedDict
+from qiskit.converters import circuit_to_dag
 import logging
 import io
 import base64
