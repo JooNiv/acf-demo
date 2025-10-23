@@ -7,8 +7,7 @@ import asyncio
 import uuid
 from iqm.qiskit_iqm import IQMFakeAphrodite, IQMProvider
 
-from qiskit.converters import circuit_to_dag, dag_to_circuit
-from collections import OrderedDict
+from qiskit.converters import circuit_to_dag
 import logging
 import io
 import base64
@@ -24,10 +23,13 @@ qx_token = os.getenv('qx_token')
 if qx_token:
     os.environ["IQM_TOKEN"] = qx_token
 
+project_id = os.getenv('slurm_project_id')
+device = os.getenv('device')
+
 backend = IQMFakeAphrodite()
 
 if  qx_token:
-    server_url = "https://qx.vtt.fi/api/devices/demo"
+    server_url = f"https://qx.vtt.fi/api/devices/{device}"
     provider = IQMProvider(server_url)
     backend = provider.get_backend()
 
@@ -372,6 +374,13 @@ async def transpile_worker():
         task = await transpile_queue.get()
 
         transpiled = await transpile_circuit(**task)
+        
+        # Append slurm metadata if using a real device (not demo)
+        # and project_id and qx_token are set
+        if device != "demo" and project_id and qx_token:
+            if getattr(transpiled, "metadata", None) is None:
+                transpiled.metadata = {}
+            transpiled.metadata["project_id"] = project_id
 
         task_id = task["task_id"]
         q1 = task["q1"]
