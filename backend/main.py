@@ -21,11 +21,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 qx_token = os.getenv('qx_token')
-os.environ["IQM_TOKEN"] = qx_token
+if qx_token:
+    os.environ["IQM_TOKEN"] = qx_token
 
 backend = IQMFakeAphrodite()
 
-if qx_token != "none":
+if  qx_token:
     server_url = "https://qx.vtt.fi/api/devices/demo"
     provider = IQMProvider(server_url)
     backend = provider.get_backend()
