@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, use } from "react";
 import { BarChart } from '@mui/x-charts/BarChart';
 import { CButton, CTable, CTextField, CSteps, CStep, CProgressBar, CPagination } from '@cscfi/csc-ui-react'
 import "./App.css"
@@ -17,6 +17,8 @@ function App() {
   const [isValid, setIsValid] = useState(true);
   const [leaderboard, setLeaderboard] = useState([]);
   const [submitted, setSubmitted] = useState(false);
+  const [showQubits, setShowQubits] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [options, setOptions] = useState({
     itemCount: leaderboard.length,
     itemsPerPage: 5,
@@ -33,7 +35,58 @@ function App() {
     "done": 5,
   }
 
+  const adminUsername = import.meta.env.VITE_adminUsername || "admin_csc_acf";
+  const qubitTogglePassword = import.meta.env.VITE_qubitTogglePassword || "supersecretpassword";
+
   const isInitialLoad = useRef(true);
+
+  useEffect(() => {
+    const cookies = document.cookie.split(";").map(cookie => cookie.trim());
+    const adminCookie = cookies.find(cookie => cookie.startsWith(`${adminUsername}=true`));
+    if (adminCookie) {
+      setIsAdmin(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    {
+      const params = new URLSearchParams(window.location.search);
+      const adminParam = params.get(adminUsername);
+      if (adminParam === qubitTogglePassword) {
+        const expires = new Date();
+        expires.setDate(expires.getDate() + 7);
+        document.cookie = `${adminUsername}=true; expires=${expires.toUTCString()}; path=/`;
+        window.location.href = "/";
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    async function fetchShowQubits() {
+      try {
+        const res = await fetch("http://localhost:8000/show_qubits");
+        const data = await res.json();
+        setShowQubits(data);
+      } catch (err) {
+        console.error("Failed to fetch showQubits:", err);
+      }
+    }
+
+    fetchShowQubits();
+  }, []);
+
+  const handleSetShowQubits = async () => {
+    try {
+      const res = await fetch("http://localhost:8000/show_qubits", {
+        method: "POST",
+      });
+      const data = await res.json();
+      console.log("Toggled showQubits to:", data);
+      setShowQubits(data);
+    } catch (err) {
+      console.error("Failed to toggle showQubits:", err);
+    }
+  };
 
   // CPagination calls onChangeValue with the new options object.
   const onPageChange = (newOptions) => {
@@ -283,7 +336,10 @@ function App() {
         <div id="leaderboard" className="h-min border border-gray-200 p-4 rounded-lg shadow-lg">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Leaderboard</h2>
-            <CButton onClick={fetchLeaderboard} className="ml-2 mb-2">Refresh</CButton>
+            <div className="flex">
+              {isAdmin && (<CButton onClick={handleSetShowQubits} className="ml-2 mb-2">Show Qubits</CButton>)}
+              <CButton onClick={fetchLeaderboard} className="ml-2 mb-2">Refresh</CButton>
+            </div>
           </div>
           {leaderboard.length === 0 ? (
             <p>No entries yet</p>
@@ -301,7 +357,7 @@ function App() {
                     <tr>
                       <th>#</th>
                       <th>User</th>
-                      <th>Qubits</th>
+                      {showQubits && (<th>Qubits</th>)}
                       <th>Result</th>
                     </tr>
                   </thead>
@@ -326,9 +382,11 @@ function App() {
                         >
                           <td>{globalIndex + 1}</td>
                           <td>{entry.username}</td>
-                          <td>
-                            ({entry.q1}, {entry.q2})
-                          </td>
+                          {showQubits && (
+                            <td>
+                              ({entry.q1}, {entry.q2})
+                            </td>
+                          )}
                           <td>{entry.score}</td>
                         </tr>
                       )
@@ -341,31 +399,31 @@ function App() {
           )}
         </div>
         {/* Selected run bar plot */}
-          {(selectedResult) && (
-            <div ref={selectedRef} className="w-full mt-4 border border-gray-200 p-4 rounded-lg shadow-lg">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold">Selected Run - Result Distribution</h3>
-                <div>
-                  <CButton onClick={() => { setSelectedResult(null); setSelectedIndex(null); }} className="ml-2">Clear</CButton>
-                </div>
+        {(selectedResult) && (
+          <div ref={selectedRef} className="w-full mt-4 border border-gray-200 p-4 rounded-lg shadow-lg">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Selected Run - Result Distribution</h3>
+              <div>
+                <CButton onClick={() => { setSelectedResult(null); setSelectedIndex(null); }} className="ml-2">Clear</CButton>
               </div>
-              <div className="mt-4">
-                <BarChart
-                  barLabel="value"
-                  xAxis={[{ id: 'selBarCats', data: Array.from(selectedResult.keys()) }]}
-                  series={[{ data: Array.from(selectedResult.values()), label: 'Count', valueFormatter: v => v, showDataLabels: true, dataLabelFormatter: v => v }]}
-                  height={260}
-                  //colors={['#006778ff']}
-                />
-              </div>
-              {selectedImage && (
-                <div className="mt-4">
-                  <h4 className="text-xl font-semibold">Selected Run - Executed circuit:</h4>
-                  <img src={selectedImage} alt="Circuit Diagram" />
-                </div>
-              )}
             </div>
-          )}
+            <div className="mt-4">
+              <BarChart
+                barLabel="value"
+                xAxis={[{ id: 'selBarCats', data: Array.from(selectedResult.keys()) }]}
+                series={[{ data: Array.from(selectedResult.values()), label: 'Count', valueFormatter: v => v, showDataLabels: true, dataLabelFormatter: v => v }]}
+                height={260}
+              //colors={['#006778ff']}
+              />
+            </div>
+            {selectedImage && (
+              <div className="mt-4">
+                <h4 className="text-xl font-semibold">Selected Run - Executed circuit:</h4>
+                <img src={selectedImage} alt="Circuit Diagram" />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
 

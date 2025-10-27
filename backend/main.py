@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import os
 from dotenv import load_dotenv
 
+show_qubits = False
+
 load_dotenv()
 
 qx_token = os.getenv('qx_token')
@@ -113,6 +115,7 @@ batch_lock = asyncio.Lock()
 
 # How often (seconds) to flush the batch and call backend.run on all collected circuits
 BATCH_INTERVAL_SECONDS = 10
+MAX_LEADERBOARD_SIZE = 200
 
 async def transpile_circuit(task_id, username, q1, q2):
     pending_transpiled.setdefault(task_id, []).append({"status": "transpiling"})
@@ -207,7 +210,7 @@ async def run_simulation(task_id, username, q1, q2, transpiled):
         }
     )
 
-    if len(leaderboard) > 200:
+    if len(leaderboard) > MAX_LEADERBOARD_SIZE:
         leaderboard.pop(0)
 
     transpiled_images.pop(task_id, None)
@@ -455,3 +458,14 @@ async def ws_status(ws: WebSocket, task_id: str):
 @app.get("/leaderboard")
 async def get_leaderboard():
     return leaderboard
+
+# Global Qubit pair visibility toggle
+@app.post("/show_qubits")
+async def toggle_show_qubits():
+    global show_qubits
+    show_qubits = not show_qubits
+    return show_qubits
+
+@app.get("/show_qubits")
+async def get_show_qubits():
+    return show_qubits
