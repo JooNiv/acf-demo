@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import matplotlib
 from qiskit import QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
@@ -397,6 +397,14 @@ async def transpile_worker():
 
 @app.post("/submit")
 async def submit(job: dict):
+    q1 = job.get("q1")
+    q2 = job.get("q2")
+
+    if q1 is None or q2 is None:
+        raise HTTPException(status_code=400, detail="Missing 'q1' or 'q2' in job submission")
+    if q1 == q2:
+        raise HTTPException(status_code=400, detail="'q1' and 'q2' must be different (cannot target the same qubit twice)")
+
     task_id = str(uuid.uuid4())
     await transpile_queue.put({"task_id": task_id, **job})
     return {"task_id": task_id}

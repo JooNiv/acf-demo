@@ -5,8 +5,8 @@ import "./App.css"
 
 function App() {
   const [username, setUsername] = useState("");
-  const [q1, setQ1] = useState(0);
-  const [q2, setQ2] = useState(1);
+  const [q1, setQ1] = useState(() => Math.floor(Math.random() * 54));
+  const [q2, setQ2] = useState(() => Math.floor(Math.random() * 54));
   const [image, setImage] = useState(null);
   const [status, setStatus] = useState("");
   const [isDone, setIsDone] = useState(0);
@@ -19,6 +19,7 @@ function App() {
   const [submitted, setSubmitted] = useState(false);
   const [showQubits, setShowQubits] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [validQubits, setValidQubits] = useState(q1 !== q2);
   const [options, setOptions] = useState({
     itemCount: leaderboard.length,
     itemsPerPage: 5,
@@ -41,6 +42,15 @@ function App() {
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
+
+    if (q1 === q2) {
+      let newQ2;
+      do {
+        newQ2 = Math.floor(Math.random() * 54);
+      } while (newQ2 === q1);
+      setQ2(newQ2);
+    }
+    
     const cookies = document.cookie.split(";").map(cookie => cookie.trim());
     const adminCookie = cookies.find(cookie => cookie.startsWith(`${adminUsername}=true`));
     if (adminCookie) {
@@ -81,10 +91,10 @@ function App() {
         method: "POST",
       });
       const data = await res.json();
-      console.log("Toggled showQubits to:", data);
+      //console.log("Toggled showQubits to:", data);
       setShowQubits(data);
     } catch (err) {
-      console.error("Failed to toggle showQubits:", err);
+      //console.error("Failed to toggle showQubits:", err);
     }
   };
 
@@ -113,10 +123,22 @@ function App() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    var validInput = true;
+
+    if (q1 === q2) {
+      setValidQubits(false);
+      //console.log("Qubits must be different");
+      validInput = false;
+    }
+
     if (username.trim() === "") {
       setIsValid(false);
-      return
+      validInput = false;
     }
+
+    if (!validInput) return;
+    
     if (status !== "" && status !== "done") return; // prevent multiple submissions
 
     setStatus("queued");
@@ -133,17 +155,32 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, q1: Number(q1), q2: Number(q2) }),
       });
-      const data = await res.json();
-      const { task_id } = data;
 
-      //setStatus("Waiting for result...");
+      // parse response body (if any)
+      let data = null;
+      try { data = await res.json(); } catch (err) { /* ignore JSON parse errors */ }
+
+      // Only start websocket on successful response
+      if (!res.ok) {
+        const errMsg = data?.detail || `Submission failed (${res.status})`;
+        setStatus("");
+        setSubmitted(false);
+        return;
+      }
+
+      const { task_id } = data || {};
+      if (!task_id) {
+        setStatus("Invalid response from server");
+        setSubmitted(false);
+        return;
+      }
 
       // Connect WebSocket for updates
       const ws = new WebSocket(`ws://localhost:8000/ws/${task_id}`);
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        console.log(msg?.status)
+        //console.log(msg?.status)
         if (msg.status === "done") {
           const entries = Object.entries(msg.result).sort(([a], [b]) => a.localeCompare(b));
           const map = new Map(entries);
@@ -167,7 +204,8 @@ function App() {
 
     } catch (err) {
       console.error(err);
-      setStatus("Error submitting job");
+      setStatus("");
+      setSubmitted(false);
     }
   }
 
@@ -223,7 +261,9 @@ function App() {
                   <CTextField
                     type="number"
                     value={q1}
-                    onChangeValue={(e) => setQ1(e.target.value)}
+                    valid={validQubits}
+                    validation="Qubits must be different"
+                    onChangeValue={(e) => setQ1(Number(e.target.value))}
                     min="0"
                     max="53"
                     style={{ marginLeft: 8, width: 50 }}
@@ -234,7 +274,7 @@ function App() {
                   <CTextField
                     type="number"
                     value={q2}
-                    onChangeValue={(e) => setQ2(e.target.value)}
+                    onChangeValue={(e) => setQ2(Number(e.target.value))}
                     min="0"
                     max="53"
                     style={{ marginLeft: 8, width: 50 }}
