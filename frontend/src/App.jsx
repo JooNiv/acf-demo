@@ -456,7 +456,7 @@ function App() {
               //colors={['#006778ff']}
               />
             </div>
-            {selectedImage && (
+            {(selectedImage && showQubits) && (
               <div className="mt-4">
                 <h4 className="text-xl font-semibold">Selected Run - Executed circuit:</h4>
                 <img src={selectedImage} alt="Circuit Diagram" />
