@@ -38,6 +38,7 @@ function App() {
 
   const adminUsername = import.meta.env.VITE_adminUsername || "admin_csc_acf";
   const qubitTogglePassword = import.meta.env.VITE_qubitTogglePassword || "supersecretpassword";
+  const backendUrl = import.meta.env.VITE_backendUrl || "http://localhost:8000";
 
   const isInitialLoad = useRef(true);
 
@@ -74,7 +75,7 @@ function App() {
   useEffect(() => {
     async function fetchShowQubits() {
       try {
-        const res = await fetch("http://localhost:8000/show_qubits");
+        const res = await fetch(`${backendUrl}/show_qubits`);
         const data = await res.json();
         setShowQubits(data);
       } catch (err) {
@@ -87,7 +88,7 @@ function App() {
 
   const handleSetShowQubits = async () => {
     try {
-      const res = await fetch("http://localhost:8000/show_qubits", {
+      const res = await fetch(`${backendUrl}/show_qubits`, {
         method: "POST",
       });
       const data = await res.json();
@@ -150,7 +151,7 @@ function App() {
 
     try {
       // Send the job request
-      const res = await fetch("http://localhost:8000/submit", {
+      const res = await fetch(`${backendUrl}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, q1: Number(q1), q2: Number(q2) }),
@@ -211,7 +212,7 @@ function App() {
 
   async function fetchLeaderboard() {
     try {
-      const res = await fetch("http://localhost:8000/leaderboard");
+      const res = await fetch(`${backendUrl}/leaderboard`);
       const data = await res.json();
       const processed = data.map(entry => ({
         ...entry,
