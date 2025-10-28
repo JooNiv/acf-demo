@@ -1,3 +1,3 @@
-qubitTogglePassword=password 
-adminUsername=admin
-backendUrl=http://localhost:8000
+VITE_qubitTogglePassword=password 
+VITE_adminUsername=admin
+VITE_backendUrl=http://localhost:8000
