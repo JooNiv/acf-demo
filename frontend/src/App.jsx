@@ -38,7 +38,7 @@ function App() {
 
   const adminUsername = import.meta.env.VITE_adminUsername || "admin";
   const qubitTogglePassword = import.meta.env.VITE_qubitTogglePassword || "password";
-  const backendUrl = import.meta.env.VITE_backendUrl || "http://localhost:8000";
+  const backendUrl = import.meta.env.VITE_backendUrl || "";
 
   const isInitialLoad = useRef(true);
 
